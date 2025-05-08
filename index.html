@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Bleach Text RPG</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game">
-    <!-- Title & Controls -->
+
+    <!-- HEADER -->
     <header>
       <h1>Bleach Text RPG</h1>
       <button id="btnNew">New Game</button>
@@ -15,35 +16,31 @@
       <button id="btnLoad">Load</button>
     </header>
 
-    <!-- Player Panel -->
+    <!-- PLAYER PANEL -->
     <section id="player-panel" class="panel hidden">
       <h2>Profile</h2>
       <div id="player-info"></div>
 
-      <!-- Chain-Pull for Spirit→Hollow -->
       <div id="chain-panel">
         <button id="btnChain">Pull Chain (G)</button>
         <span id="chainCount">0/5</span>
       </div>
 
-      <!-- Progression & Points -->
       <div id="prog-panel">
         <button id="btnTeleport" class="hidden">Teleport to Hueco Mundo</button>
         <div id="stageDisplay">Stage: Human</div>
         <div id="killPoints">Kill Points: 0</div>
       </div>
 
-      <!-- Eat Remains -->
       <button id="btnEat" class="hidden">Eat Remains</button>
 
-      <!-- Stat Allocation -->
       <div id="stat-panel" class="hidden">
         <h3>Stat Points: <span id="spLeft">0</span></h3>
         <div id="stat-buttons"></div>
       </div>
     </section>
 
-    <!-- Battle Panel -->
+    <!-- BATTLE PANEL -->
     <section id="battle-panel" class="panel hidden">
       <h2>Battle</h2>
       <canvas id="battle-canvas" width="480" height="240"></canvas>
@@ -52,7 +49,7 @@
       <button id="btnNext" class="hidden">Next Enemy</button>
     </section>
 
-    <!-- Arrancar Mini-Game Panel -->
+    <!-- ARRANCAR MINI-GAME -->
     <section id="arrow-mini" class="panel hidden">
       <h2>Arrancar Challenge</h2>
       <div id="arrows"></div>
@@ -60,15 +57,8 @@
       <button id="btnArrancar">Attempt Resurrección</button>
     </section>
 
-    <!-- Text-UI Prompt -->
-    <footer id="prompt-panel" class="panel hidden">
-      <div id="prompt-text"></div>
-      <input id="prompt-input" type="text" autocomplete="off"/>
-      <button id="prompt-submit">OK</button>
-    </footer>
   </div>
 
-  <!-- Load the game entry point -->
-  <script type="module" src="main.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
