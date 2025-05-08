@@ -2,35 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bleach: Spiritual Rift — Browser RPG</title>
+  <title>Bleach RPG – Spiritual Rift</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="game">
+    <!-- ───── TITLE BAR ───── -->
     <header>
-      <h1>Bleach: Spiritual Rift</h1>
+      <h1>Bleach RPG – Spiritual Rift</h1>
       <button id="btnNew">New Game</button>
       <button id="btnSave">Save</button>
       <button id="btnLoad">Load</button>
     </header>
 
+    <!-- ───── CHARACTER PANEL ───── -->
     <section id="player-panel" class="panel hidden">
-      <h2>Shinigami Profile</h2>
+      <h2>Profile</h2>
       <div id="player-info"></div>
-      <button id="btnShikai" class="hidden">Release Shikai</button>
-      <button id="btnBankai" class="hidden">Unleash Bankai</button>
-      <button id="btnHollow" class="hidden">Hollowfication</button>
+
+      <div id="transform-buttons">
+        <button id="btnShikai"  class="hidden">Release Shikai</button>
+        <button id="btnBankai"  class="hidden">Unleash Bankai</button>
+        <button id="btnHollow"  class="hidden">Hollow Mask On</button>
+      </div>
+
+      <div id="stat-panel" class="hidden">
+        <h3>Unspent SP <span id="spLeft">0</span></h3>
+        <div id="stat-buttons"></div>
+      </div>
     </section>
 
+    <!-- ───── BATTLE PANEL ───── -->
     <section id="battle-panel" class="panel hidden">
       <h2>Battle</h2>
       <canvas id="battle-canvas" width="480" height="240"></canvas>
       <div id="battle-log"></div>
       <div id="skill-grid"></div>
+      <button id="btnNext" class="hidden">Next Enemy</button>
     </section>
 
+    <!-- ───── QUEST PANEL (stub) ───── -->
     <section id="quest-panel" class="panel hidden">
-      <h2>Quests</h2>
+      <h2>Quests (soon)</h2>
       <ul id="quest-list"></ul>
     </section>
   </div>
