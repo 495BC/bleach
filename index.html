@@ -2,50 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bleach RPG – Spiritual Rift</title>
+  <title>Bleach RPG – Peroxide Edition</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="game">
-    <!-- ───── TITLE BAR ───── -->
+
+    <!-- TITLE BAR -->
     <header>
-      <h1>Bleach RPG – Spiritual Rift</h1>
-      <button id="btnNew">New Game</button>
+      <h1>Bleach RPG – Peroxide Edition</h1>
+      <button id="btnNew">New Game</button>
       <button id="btnSave">Save</button>
       <button id="btnLoad">Load</button>
     </header>
 
-    <!-- ───── CHARACTER PANEL ───── -->
+    <!-- PLAYER PANEL -->
     <section id="player-panel" class="panel hidden">
       <h2>Profile</h2>
       <div id="player-info"></div>
 
-      <div id="transform-buttons">
-        <button id="btnShikai"  class="hidden">Release Shikai</button>
-        <button id="btnBankai"  class="hidden">Unleash Bankai</button>
-        <button id="btnHollow"  class="hidden">Hollow Mask On</button>
+      <!-- Chain Pull (Hollow Emergence) -->
+      <div id="chain-panel">
+        <button id="btnChain">Pull Chain (G)</button>
+        <span id="chainCount">0/5</span>
       </div>
 
+      <!-- Progression & Teleport -->
+      <div id="prog-panel">
+        <button id="btnTeleport" class="hidden">Teleport to Hueco Mundo</button>
+        <div id="stageDisplay">Stage: Human</div>
+        <div id="killPoints">Kill Points: 0</div>
+      </div>
+
+      <!-- Eat Remains -->
+      <button id="btnEat" class="hidden">Eat Remains</button>
+
+      <!-- Stat Upgrade -->
       <div id="stat-panel" class="hidden">
-        <h3>Unspent SP <span id="spLeft">0</span></h3>
+        <h3>Stat Points: <span id="spLeft">0</span></h3>
         <div id="stat-buttons"></div>
       </div>
     </section>
 
-    <!-- ───── BATTLE PANEL ───── -->
+    <!-- BATTLE PANEL -->
     <section id="battle-panel" class="panel hidden">
       <h2>Battle</h2>
       <canvas id="battle-canvas" width="480" height="240"></canvas>
       <div id="battle-log"></div>
       <div id="skill-grid"></div>
-      <button id="btnNext" class="hidden">Next Enemy</button>
+      <button id="btnNext" class="hidden">Next Enemy</button>
     </section>
 
-    <!-- ───── QUEST PANEL (stub) ───── -->
-    <section id="quest-panel" class="panel hidden">
-      <h2>Quests (soon)</h2>
-      <ul id="quest-list"></ul>
+    <!-- ARROW MINI-GAME STUB -->
+    <section id="arrow-mini" class="panel hidden">
+      <h2>Arrancar Mini-Game</h2>
+      <div id="arrows"></div>
+      <div id="arrow-log"></div>
     </section>
+
   </div>
 
   <script src="game.js"></script>
