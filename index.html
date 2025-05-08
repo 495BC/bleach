@@ -8,7 +8,6 @@
 <body>
   <div id="game">
 
-    <!-- HEADER -->
     <header>
       <h1>Bleach Text RPG</h1>
       <button id="btnNew">New Game</button>
@@ -16,7 +15,6 @@
       <button id="btnLoad">Load</button>
     </header>
 
-    <!-- PLAYER PANEL -->
     <section id="player-panel" class="panel hidden">
       <h2>Profile</h2>
       <div id="player-info"></div>
@@ -40,7 +38,6 @@
       </div>
     </section>
 
-    <!-- BATTLE PANEL -->
     <section id="battle-panel" class="panel hidden">
       <h2>Battle</h2>
       <canvas id="battle-canvas" width="480" height="240"></canvas>
@@ -49,7 +46,6 @@
       <button id="btnNext" class="hidden">Next Enemy</button>
     </section>
 
-    <!-- ARRANCAR MINI-GAME -->
     <section id="arrow-mini" class="panel hidden">
       <h2>Arrancar Challenge</h2>
       <div id="arrows"></div>
@@ -59,6 +55,7 @@
 
   </div>
 
+  <!-- make sure this is *not* type="module" since game.js is plain -->
   <script src="game.js"></script>
 </body>
 </html>
