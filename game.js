@@ -14,452 +14,395 @@ class Zanpakuto {
 }
 
 class Character {
-  constructor({ name, hp, reiatsu, atk, def, spd, zanpakuto = null, faction }) {
-    this.name      = name;
-    this.maxHp     = hp;     this.hp      = hp;
-    this.maxRei    = reiatsu;this.reiatsu = reiatsu;
-    this.atk       = atk;    this.def     = def;
-    this.spd       = spd;
-    this.xp        = 0;
-    this.lv        = 1;
-    this.statPts   = 0;
-    this.zanpakuto = zanpakuto;
-    this.faction   = faction;
-    this.hasShikai = false;
-    this.hasBankai = false;
-    this.maskOn    = false;
-
+  constructor({ name, faction, hp, reiatsu, atk, def, spd, zanpakuto = null }) {
+    Object.assign(this, {
+      name, faction,
+      maxHp: hp,     hp,
+      maxRei: reiatsu, reiatsu,
+      atk, def, spd,
+      xp: 0, lv: 1, statPts: 0,
+      zanpakuto,
+      hasShikai: false, hasBankai: false, maskOn: false,
+      // Progression fields
+      isSpirit: false, chainPulls: 0,
+      progStage: 'Human', // 'Spirit','Hollow','RedEyes','Menos','Adjuchas','Arrancar','Vastocar'
+      killCounts: {}, killPoints: 0,
+      menosStart: null, teleportUsed: false,
+      hollowArts: [], arrancarForm: null
+    });
     // Starting skill by faction
     if (faction === 'Soul Reaper') {
-      this.skills = [
-        new Skill({ name: 'Zanjutsu Slash', cost: 0, power: 1.0, desc: 'Basic blade strike', unlockLv: 1 })
-      ];
+      this.skills = [ new Skill({ name:'Zanjutsu Slash',cost:0,power:1.0,desc:'Basic blade strike',unlockLv:1 }) ];
     } else {
-      this.skills = [
-        new Skill({ name: 'Hollow Claw', cost: 0, power: 1.0, desc: 'Ferocious claw swipe', unlockLv: 1 })
-      ];
-      this.hollowArtsChosen = [];
+      this.skills = [ new Skill({ name:'Hollow Claw',    cost:0,power:1.0,desc:'Ferocious claw swipe',unlockLv:1 }) ];
     }
   }
 
-  learnShikai() {
-    if (this.zanpakuto && !this.hasShikai && this.faction === 'Soul Reaper') {
-      const pool = this.zanpakuto.shikaiSkills.filter(sk => sk.unlockLv <= this.lv);
-      if (pool.length) {
-        const pick = pool[rand(pool.length)];
-        this.skills.push(pick);
-        this.hasShikai = true;
+  // — Transformation & Progression Methods —
+
+  onDeath() {
+    if (!this.isSpirit) {
+      this.isSpirit = true;
+      this.progStage = 'Spirit';
+      Game.log('You have died—press G five times to pull your chain of fate.');
+    } else {
+      Game.log('You are already in spirit form.');
+    }
+  }
+
+  pullChain() {
+    if (this.progStage !== 'Spirit') return;
+    this.chainPulls++;
+    Game.log(`Chain pulled (${this.chainPulls}/5).`);
+    if (this.chainPulls >= 5) {
+      this.progStage = 'Hollow';
+      this.isSpirit = false;
+      Game.log('Transformed into Hollow! Teleporting to Hueco Mundo…');
+      Game.teleportTo('Hueco Mundo');
+    }
+  }
+
+  eatRemains(type) {
+    // type: 'Normal','RedEyes','Menos','AncientMenos',...
+    const ptsMap = {
+      Normal: 1,     RedEyes:3,
+      Menos:5,       AncientMenos:15,
+      Adjuchas:10,   AncientAdjuchas:25,
+      VastoLorde:50, AncientVasto:75,
+      StormArrancar:100, ImpureHogyoku:1000
+    };
+    const pts = ptsMap[type] || 0;
+    this.killPoints += pts;
+    this.xp += pts; // XP matches points for simplicity
+    this.killCounts[type] = (this.killCounts[type]||0) + 1;
+    Game.log(`Gained ${pts} XP (${type})`);
+    Game.checkLevelUp();
+  }
+
+  startMenosTimer() {
+    if (this.progStage === 'Menos' && !this.menosStart) {
+      this.menosStart = Date.now();
+      Game.log('30-minute survival timer started.');
+    }
+  }
+
+  attemptAdjuchas() {
+    if (this.progStage === 'Menos') {
+      const survived = (Date.now() - this.menosStart) >= 30*60*1000;
+      if (this.killCounts['Hollow'] >= 30 && survived) {
+        this.progStage = 'Adjuchas';
+        this.applyBuffs();
+        Game.log('Evolved into Adjuchas!');
+      } else {
+        Game.log('Need 30 kills AND 30m survival to become Adjuchas.');
       }
+    }
+  }
+
+  startArrancarMiniGame() {
+    if (['Menos','Adjuchas','VastoLorde'].includes(this.progStage)) {
+      Game.startArrowMiniGame(this.progStage);
+    }
+  }
+
+  completeArrancar(form) {
+    // form: 'Menoscar','Adjucar','Vastocar'
+    this.arrancarForm = form;
+    this.progStage = 'Arrancar';
+    this.applyBuffs();
+    Game.log(`Arrancar form ${form} unlocked!`);
+  }
+
+  applyBuffs() {
+    // Buff multipliers per stage
+    const buffs = {
+      Menos:      { multiplier:1.2,  extraHp:50, xpBoost:0.2 },
+      Adjuchas:   { multiplier:1.05, extraHp:50, xpBoost:0.4 },
+      VastoLorde: { multiplier:1.15, extraHp:80, xpBoost:0.8 },
+    };
+    const b = buffs[this.progStage] || {};
+    this.maxHp = Math.floor(this.maxHp * (b.multiplier||1) + (b.extraHp||0));
+    this.hp    = this.maxHp;
+    Game.log(`Buffs applied: HP×${b.multiplier||1}+${b.extraHp||0}, XP+${(b.xpBoost||0)*100}%`);
+  }
+
+  learnShikai() {
+    if (this.faction==='Soul Reaper' && !this.hasShikai && this.lv>=5) {
+      const pool = this.zanpakuto.shikaiSkills.filter(s => s.unlockLv<=this.lv);
+      const pick = pool[rand(pool.length)];
+      this.skills.push(pick);
+      this.hasShikai = true;
+      Game.log(`Shikai skill ${pick.name} learned.`);
     }
   }
 
   learnBankai() {
-    if (this.zanpakuto && !this.hasBankai && this.faction === 'Soul Reaper') {
-      const pool = this.zanpakuto.bankaiSkills.filter(sk => sk.unlockLv <= this.lv);
-      if (pool.length) {
-        const pick = pool[rand(pool.length)];
-        this.skills.push(pick);
-        this.hasBankai = true;
-      }
-    }
-  }
-
-  applyMask() {
-    if (!this.maskOn && this.faction === 'Soul Reaper') {
-      this.maskOn = true;
-      this.atk = Math.floor(this.atk * 1.4);
-      this.spd = Math.floor(this.spd * 1.3);
-    }
-  }
-
-  removeMask() {
-    if (this.maskOn) {
-      this.maskOn = false;
-      this.atk = Math.round(this.atk / 1.4);
-      this.spd = Math.round(this.spd / 1.3);
+    if (this.faction==='Soul Reaper' && !this.hasBankai && this.lv>=20) {
+      const pool = this.zanpakuto.bankaiSkills.filter(s => s.unlockLv<=this.lv);
+      const pick = pool[rand(pool.length)];
+      this.skills.push(pick);
+      this.hasBankai = true;
+      Game.log(`Bankai skill ${pick.name} learned.`);
     }
   }
 }
 
 /********************  STATIC DB  **************************/
 const hollowArts = [
-  { name: 'Cero',             cost: 8,  power: 2.0, desc: 'Red destruction beam',        type: 'ranged' },
-  { name: 'Bala',             cost: 6,  power: 1.6, desc: 'Fast reiatsu shot',           type: 'ranged' },
-  { name: 'Gran Rey Cero',    cost: 20, power: 3.5, desc: 'Massive red wave',            type: 'ranged' },
-  { name: 'Hierro Smash',     cost: 0,  power: 1.2, desc: 'Reinforced skin smash',       type: 'melee' },
-  { name: 'Cero Oscuras',     cost: 15, power: 3.0, desc: 'Dark destructive beam',       type: 'ranged' }
+  { name:'Cero', cost:8, power:2.0, desc:'Red destruction beam', type:'ranged' },
+  { name:'Bala', cost:6, power:1.6, desc:'Rapid reiatsu shot',   type:'ranged' },
+  { name:'Gran Rey Cero', cost:20, power:3.5, desc:'Massive beam',    type:'ranged' },
+  { name:'Hierro Smash',   cost:0,  power:1.2, desc:'Reinforced melee',type:'melee' },
+  { name:'Cero Oscuras',   cost:15, power:3.0, desc:'Dark beam',       type:'ranged' }
 ];
 
 const ZanpakutoDB = {
   Ichigo: new Zanpakuto({
-    name: 'Zangetsu',
-    shikaiSkills: [
-      new Skill({ name: 'Getsuga Slash',    cost: 10, power: 2.2, desc: 'Arc reiatsu wave',                type: 'ranged', unlockLv: 5 }),
-      new Skill({ name: 'Getsuga Tenshou',  cost: 12, power: 2.5, desc: 'Enhanced reiatsu wave',          type: 'ranged', unlockLv: 8 })
+    name:'Zangetsu',
+    shikaiSkills:[
+      new Skill({name:'Getsuga Slash',     cost:10,power:2.2,desc:'Arc wave',unlockLv:5}),
+      new Skill({name:'Getsuga Tenshou',   cost:12,power:2.5,desc:'Enhanced wave',unlockLv:8})
     ],
-    bankaiSkills: [
-      new Skill({ name: 'Tensa Getsuga',    cost: 25, power: 4.0, desc: 'Compressed black Getsuga',       unlockLv: 20 }),
-      new Skill({ name: 'Mugetsu',           cost: 50, power: 6.0, desc: 'Final Getsuga Tenshou',          unlockLv: 25 })
+    bankaiSkills:[
+      new Skill({name:'Tensa Getsuga',cost:25,power:4.0,desc:'Black Getsuga',unlockLv:20}),
+      new Skill({name:'Mugetsu',      cost:50,power:6.0,desc:'Final form',unlockLv:25})
     ]
   }),
   Rukia: new Zanpakuto({
-    name: 'Sode no Shirayuki',
-    shikaiSkills: [
-      new Skill({ name: 'Some no Mai: Tsukishiro', cost: 12, power: 2.0, desc: 'Freezing circle',  unlockLv: 5 }),
-      new Skill({ name: 'Tsugi no Mai: Hakuren',    cost: 15, power: 2.6, desc: 'Frost stream',     type: 'ranged', unlockLv: 8 }),
-      new Skill({ name: 'Kurai Shiroba',           cost: 18, power: 3.0, desc: 'Bitter white dance', unlockLv: 10 })
+    name:'Sode no Shirayuki',
+    shikaiSkills:[
+      new Skill({name:'Some no Mai',cost:12,power:2.0,desc:'Freezing circle',unlockLv:5}),
+      new Skill({name:'Hakuren',    cost:15,power:2.6,desc:'Frost stream',unlockLv:8})
     ],
-    bankaiSkills: [
-      new Skill({ name: 'Hakka no Togame',        cost: 30, power: 4.2, desc: 'Absolute-zero explosion', unlockLv: 20 }),
-      new Skill({ name: 'Danse Macabre',          cost: 35, power: 4.5, desc: 'Snowstorm nightmare',    unlockLv: 25 })
+    bankaiSkills:[
+      new Skill({name:'Hakka no Togame',cost:30,power:4.2,desc:'Absolute zero',unlockLv:20})
     ]
   })
 };
 
-const Factions = ['Soul Reaper', 'Hollow'];
-const rand     = n => Math.floor(Math.random() * n);
-const clamp   = (v, min, max) => Math.max(min, Math.min(max, v));
+const Factions = ['Soul Reaper','Hollow'];
+const rand     = n => Math.floor(Math.random()*n);
+const clamp   = (v,min,max) => Math.max(min,Math.min(max,v));
 
 /******************  GAME STATE  ***************************/
 const Game = {
-  player: null,
-  enemy: null,
-  battleActive: false,
-  currentTurn: null,
+  player: null, enemy: null,
+  battleActive:false, currentTurn:null,
+  logEl:document.getElementById('battle-log'),
+  skillGrid:document.getElementById('skill-grid'),
+  panels: {
+    player: document.getElementById('player-panel'),
+    battle: document.getElementById('battle-panel'),
+    quest:  document.getElementById('quest-panel')
+  },
 
-  logEl:     document.getElementById('battle-log'),
-  skillGrid: document.getElementById('skill-grid'),
-  spLeftEl:  document.getElementById('spLeft'),
-  btnMask:   document.getElementById('btnHollow'),
-
+  /**********  LOGGING & UI  **********/
   log(msg) {
     const d = document.createElement('div');
     d.innerHTML = msg;
     this.logEl.appendChild(d);
     this.logEl.scrollTop = this.logEl.scrollHeight;
   },
-
-  clearLog() {
-    this.logEl.innerHTML = '';
-  },
+  clearLog() { this.logEl.innerHTML = ''; },
 
   updateHUD() {
     const ctx = document.getElementById('battle-canvas').getContext('2d');
-    ctx.clearRect(0, 0, 480, 240);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(`${this.player.name}`,           20, 30);
-    ctx.fillText(`HP: ${this.player.hp}/${this.player.maxHp}`, 20, 50);
-    ctx.fillText(`${this.enemy.name}`,            300, 30);
-    ctx.fillText(`HP: ${this.enemy.hp}/${this.enemy.maxHp}`, 300, 50);
+    ctx.clearRect(0,0,480,240);
+    ctx.fillStyle='#fff';
+    ctx.fillText(`${this.player.name}`,20,30);
+    ctx.fillText(`HP: ${this.player.hp}/${this.player.maxHp}`,20,50);
+    ctx.fillText(`${this.enemy.name}`,300,30);
+    ctx.fillText(`HP: ${this.enemy.hp}/${this.enemy.maxHp}`,300,50);
   },
 
   updatePlayerPanel() {
     const p = this.player;
     document.getElementById('player-info').innerHTML = `
       <strong>${p.name}</strong> (${p.faction})<br>
+      Stage: ${p.progStage}<br>
       HP ${p.hp}/${p.maxHp} | Rei ${p.reiatsu}/${p.maxRei}<br>
-      Lv ${p.lv} XP ${p.xp}/${this.xpToLevel(p.lv)}<br>
-      ATK ${p.atk} DEF ${p.def} SPD ${p.spd}
+      Lv ${p.lv} XP ${p.xp}/${this.xpToLevel(p.lv)} | SP ${p.statPts}
     `;
-    document.getElementById('btnShikai').classList.toggle('hidden', !(p.lv >= 5 && !p.hasShikai));
-    document.getElementById('btnBankai').classList.toggle('hidden', !(p.lv >= 20 && !p.hasBankai));
-    if (p.faction === 'Soul Reaper' && p.lv >= 15) {
-      this.btnMask.classList.remove('hidden');
-      this.btnMask.textContent = p.maskOn ? 'Hollow Mask Off' : 'Hollow Mask On';
-    } else {
-      this.btnMask.classList.add('hidden');
-    }
-    document.getElementById('stat-panel').classList.toggle('hidden', p.statPts === 0);
-    this.spLeftEl.textContent = p.statPts;
+    // Transform & progression buttons
+    document.getElementById('btnShikai').classList.toggle('hidden', !(p.faction==='Soul Reaper'&&p.lv>=5&&!p.hasShikai));
+    document.getElementById('btnBankai').classList.toggle('hidden', !(p.faction==='Soul Reaper'&&p.lv>=20&&!p.hasBankai));
+    document.getElementById('btnHollow').classList.toggle('hidden', true); // repurpose for Arrancar
+    document.getElementById('stat-panel').classList.toggle('hidden', p.statPts===0);
   },
 
   populateSkills() {
     this.skillGrid.innerHTML = '';
-    this.player.skills.forEach((sk, idx) => {
-      if (sk.unlockLv > this.player.lv) return;
+    this.player.skills.forEach((sk,idx) => {
+      if (sk.unlockLv>this.player.lv) return;
       const btn = document.createElement('button');
       btn.textContent = `${sk.name} (${sk.cost})`;
-      btn.className = 'skill-btn';
-      btn.disabled  = !this.battleActive || this.currentTurn !== 'player';
-      btn.onclick   = () => this.playerTurn(idx);
+      btn.disabled   = !this.battleActive || this.currentTurn!=='player';
+      btn.onclick    = ()=>this.playerTurn(idx);
       this.skillGrid.appendChild(btn);
     });
-    this.skillGrid.classList.toggle('hidden', !this.battleActive);
   },
 
-  /************  BATTLE FLOW  ************/
+  /**********  BATTLE FLOW  **********/
   startBattle() {
-    this.enemy        = this.generateEnemy();
+    this.enemy = this.generateEnemy();
     this.battleActive = true;
-    this.clearLog();
-    this.renderNextBtn(false);
-    this.updateHUD();
-    this.populateSkills();
-    this.currentTurn = (this.player.spd >= this.enemy.spd) ? 'player' : 'enemy';
+    this.clearLog(); this.updateHUD(); this.populateSkills();
+    this.currentTurn = (this.player.spd>=this.enemy.spd?'player':'enemy');
     this.log(`Encountered <strong>${this.enemy.name}</strong>!`);
-    if (this.currentTurn === 'enemy') {
-      this.log(`${this.enemy.name} acts first!`);
-      setTimeout(() => this.enemyTurn(), 500);
-    } else {
-      this.log(`You act first!`);
-    }
-    document.getElementById('battle-panel').classList.remove('hidden');
+    if (this.currentTurn==='enemy') setTimeout(()=>this.enemyTurn(),500);
+    this.panels.battle.classList.remove('hidden');
   },
 
-  playerTurn(idx) {
-    if (!this.battleActive || this.currentTurn !== 'player') return;
-    const sk = this.player.skills[idx];
-    if (this.player.reiatsu < sk.cost) {
-      this.log('Not enough Rei!');
-      return;
-    }
-    this.player.reiatsu = clamp(this.player.reiatsu - sk.cost, 0, this.player.maxRei);
-    const dmg = this.calcDamage(this.player, this.enemy, sk.power);
-    this.enemy.hp = clamp(this.enemy.hp - dmg, 0, this.enemy.maxHp);
-    this.log(`<strong>You</strong> used <em>${sk.name}</em> for ${dmg} dmg.`);
+  playerTurn(i) {
+    const sk = this.player.skills[i];
+    if (this.player.reiatsu<sk.cost) { this.log('Not enough Rei!'); return; }
+    this.player.reiatsu = clamp(this.player.reiatsu-sk.cost,0,this.player.maxRei);
+    const dmg = this.calcDamage(this.player,this.enemy,sk.power);
+    this.enemy.hp = clamp(this.enemy.hp-dmg,0,this.enemy.maxHp);
+    this.log(`You used ${sk.name} for ${dmg} dmg.`);
     this.updateHUD();
     if (this.checkBattleEnd()) return;
-    this.currentTurn = 'enemy';
-    this.populateSkills();
-    setTimeout(() => this.enemyTurn(), 500);
+    this.currentTurn='enemy'; this.populateSkills();
+    setTimeout(()=>this.enemyTurn(),500);
   },
 
   enemyTurn() {
-    if (!this.battleActive || this.currentTurn !== 'enemy') return;
     const sk = this.enemy.skills[rand(this.enemy.skills.length)];
-    if (this.enemy.reiatsu < sk.cost) {
-      this.enemy.reiatsu = clamp(this.enemy.reiatsu + 5, 0, this.enemy.maxRei);
+    if (this.enemy.reiatsu<sk.cost) {
+      this.enemy.reiatsu = clamp(this.enemy.reiatsu+5,0,this.enemy.maxRei);
       this.log(`${this.enemy.name} focuses Rei.`);
     } else {
-      this.enemy.reiatsu = clamp(this.enemy.reiatsu - sk.cost, 0, this.enemy.maxRei);
-      const dmg = this.calcDamage(this.enemy, this.player, sk.power);
-      this.player.hp = clamp(this.player.hp - dmg, 0, this.player.maxHp);
-      this.log(`<strong>${this.enemy.name}</strong> used ${sk.name} for ${dmg} dmg.`);
+      this.enemy.reiatsu = clamp(this.enemy.reiatsu-sk.cost,0,this.enemy.maxRei);
+      const dmg = this.calcDamage(this.enemy,this.player,sk.power);
+      this.player.hp = clamp(this.player.hp-dmg,0,this.player.maxHp);
+      this.log(`${this.enemy.name} used ${sk.name} for ${dmg} dmg.`);
       this.updateHUD();
     }
     if (this.checkBattleEnd()) return;
-    this.currentTurn = 'player';
-    this.populateSkills();
+    this.currentTurn='player'; this.populateSkills();
   },
 
   checkBattleEnd() {
-    if (this.player.hp <= 0) {
-      this.log('<span style="color:red">You were defeated…</span>');
-      this.endBattle();
-      return true;
+    if (this.player.hp<=0) {
+      this.log('<span style="color:red">Defeated…</span>');
+      this.player.onDeath(); this.endBattle(); return true;
     }
-    if (this.enemy.hp <= 0) {
-      const gained = 20 + rand(15);
-      this.log(`<span style="color:lime">Victory! +${gained} XP</span>`);
-      this.player.xp += gained;
-      while (this.player.xp >= this.xpToLevel(this.player.lv)) {
-        this.player.xp -= this.xpToLevel(this.player.lv);
-        this.levelUp();
-      }
-      this.updatePlayerPanel();
-      this.endBattle(true);
-      return true;
+    if (this.enemy.hp<=0) {
+      // award XP and points based on progStage
+      const type = this.enemy.faction==='Hollow'?'Normal':this.enemy.faction;
+      this.player.eatRemains(type);
+      this.endBattle(true); return true;
     }
     return false;
   },
 
-  endBattle(victory = false) {
-    this.battleActive = false;
+  endBattle(win=false) {
+    this.battleActive=false;
     this.skillGrid.classList.add('hidden');
-    this.renderNextBtn(victory);
+    // Show next button if win
+    document.getElementById('btnNext').classList.toggle('hidden',!win);
   },
 
-  renderNextBtn(show) {
-    document.getElementById('btnNext').classList.toggle('hidden', !show);
+  calcDamage(att,tgt,pwr) {
+    const base = Math.max(1,(att.atk*pwr)-tgt.def);
+    return Math.floor(base*(0.8+Math.random()*0.4));
   },
 
-  calcDamage(att, tgt, power) {
-    const base = Math.max(1, (att.atk * power) - tgt.def);
-    return Math.floor(base * (0.8 + Math.random() * 0.4));
-  },
+  xpToLevel(lv) { return 40+lv*25; },
 
-  levelUp() {
-    const p = this.player;
-    p.lv++;
-    p.statPts += 5;
-    p.maxHp  += 15; p.hp      = p.maxHp;
-    p.maxRei += 10; p.reiatsu = p.maxRei;
-    this.log(`<span style="color:gold">Level ${p.lv} achieved! +5 Stat Points</span>`);
-
-    // Soul Reaper unlocks
-    if (p.lv === 5  && p.faction === 'Soul Reaper') { p.learnShikai(); this.log('Shikai awakened!'); }
-    if (p.lv === 20 && p.faction === 'Soul Reaper') { p.learnBankai(); this.log('Bankai attainable!'); }
-
-    // Hollow arts at lv 5 & 10
-    if (p.lv === 5  && p.faction === 'Hollow') this.unlockHollowArt(5);
-    if (p.lv === 10 && p.faction === 'Hollow') this.unlockHollowArt(10);
-
-    this.populateSkills();
+  checkLevelUp() {
+    while (this.player.xp>=this.xpToLevel(this.player.lv)) {
+      this.player.xp-=this.xpToLevel(this.player.lv);
+      this.player.lv++;
+      this.player.statPts+=5;
+      this.log(`<span style="color:gold">Level ${this.player.lv}! +5 SP</span>`);
+      this.player.learnShikai();
+      this.player.learnBankai();
+      if (this.player.progStage==='Hollow' && this.player.lv>=20) {
+        this.player.progStage='RedEyes';
+        this.log('Red-Eyes stage unlocked! Defeat a Red-Eyes Hollow to become Menos.');
+      }
+      if (this.player.progStage==='RedEyes') {
+        // wait for a Red-Eyes kill to call transform
+      }
+      if (this.player.progStage==='Menos') this.player.startMenosTimer();
+    }
     this.updatePlayerPanel();
   },
 
-  unlockHollowArt(lv) {
-    const p = this.player;
-    const avail = hollowArts.filter(a => !p.hollowArtsChosen.includes(a.name));
-    if (!avail.length) return;
-    const art = avail[rand(avail.length)];
-    p.hollowArtsChosen.push(art.name);
-    const sk = new Skill({ ...art, unlockLv: lv });
-    p.skills.push(sk);
-    this.log(`Hollow Art “${sk.name}” learned at Lv ${lv}!`);
-  },
-
-  xpToLevel(lv) {
-    return 40 + lv * 25;
-  },
-
   generateEnemy() {
-    let tiers;
-    if (this.player.faction === 'Soul Reaper') {
-      tiers = [
-        { name:'Small Hollow',  hp:60,  rei:30,  atk:8,  def:4,  spd:5,  skills:[new Skill({name:'Claw',cost:0,power:1.3})] },
-        { name:'Menos Grande',  hp:140, rei:60,  atk:16, def:8,  spd:6,  skills:[new Skill({name:'Cero',cost:12,power:2.2,type:'ranged'})] },
-        { name:'Adjuchas',      hp:200, rei:80,  atk:22, def:12, spd:9,  skills:[new Skill({name:'Shadow Claw',cost:10,power:2.0})] },
-        { name:'Vasto Lord',    hp:260, rei:110, atk:28, def:16, spd:11, skills:[new Skill({name:'Oscuras',cost:20,power:3.0,type:'ranged'})] }
-      ];
-    } else {
-      tiers = [
-        { name:'Rukongai Guard',hp:70,  rei:35,  atk:9,  def:4,  spd:6,  skills:[new Skill({name:'Slash',cost:0,power:1.4})] },
-        { name:'Seated Officer',hp:150, rei:70,  atk:18, def:9,  spd:8,  skills:[new Skill({name:'Hadō #31',cost:12,power:2.1,type:'ranged'})] },
-        { name:'Vice-Captain',  hp:210, rei:90,  atk:23, def:13, spd:11, skills:[new Skill({name:'Shikai Art',cost:15,power:2.5})] },
-        { name:'Captain',       hp:280, rei:120, atk:30, def:17, spd:13, skills:[new Skill({name:'Bankai Strike',cost:25,power:3.4})] }
-      ];
-    }
-    const idx = Math.min(tiers.length - 1, Math.floor(this.player.lv / 5));
-    const b   = tiers[idx];
-    const e   = new Character({
-      name:    b.name,
-      hp:      b.hp,
-      reiatsu: b.rei,
-      atk:     b.atk,
-      def:     b.def,
-      spd:     b.spd,
-      faction: this.player.faction === 'Soul Reaper' ? 'Hollow' : 'Soul Reaper'
-    });
-    e.skills = b.skills;
+    const tiers = (this.player.faction==='Soul Reaper'
+      ? [
+          {name:'Small Hollow',hp:60,rei:30,atk:8,def:4,spd:5},
+          {name:'Red-Eyes Hollow',hp:80,rei:40,atk:12,def:6,spd:7},
+          {name:'Menos Grande',hp:140,rei:60,atk:16,def:8,spd:6},
+          {name:'Adjuchas',hp:200,rei:80,atk:22,def:12,spd:9},
+          {name:'Vasto Lorde',hp:260,rei:110,atk:28,def:16,spd:11}
+        ]
+      : [
+          {name:'Rukongai Guard',hp:70,rei:35,atk:9,def:4,spd:6},
+          {name:'Seated Officer',hp:150,rei:70,atk:18,def:9,spd:8},
+          {name:'Vice-Captain',hp:210,rei:90,atk:23,def:13,spd:11},
+          {name:'Captain',hp:280,rei:120,atk:30,def:17,spd:13}
+        ]
+    );
+    const idx = Math.min(tiers.length-1,Math.floor(this.player.lv/5));
+    const b = tiers[idx];
+    const e = new Character({ name:b.name, faction:this.player.faction==='Soul Reaper'?'Hollow':'Soul Reaper',
+                              hp:b.hp, reiatsu:b.rei, atk:b.atk, def:b.def, spd:b.spd });
+    e.skills = [ new Skill({ name:'Basic Attack',cost:0,power:1.0,desc:'Default' }) ];
     return e;
   },
 
+  teleportTo(loc) {
+    Game.log(`<< Teleported to ${loc} >>`);
+    // stub: implement map switching
+  },
+
+  /**********  Mini-Games & NPCs  **********/
+  startArrowMiniGame(stage) {
+    Game.log(`Arrow mini-game for ${stage} Arrancar transformation started (press arrow keys)`);
+    // stub: actual arrow mini-game logic with success/failure callback
+  },
+
+  /**********  SAVE/LOAD  **********/
   save() {
     localStorage.setItem('BleachRPGSave', JSON.stringify(this.player));
     alert('Game saved.');
   },
-
   load() {
     const data = localStorage.getItem('BleachRPGSave');
-    if (!data) return alert('No save data.');
-    let raw;
-    try { raw = JSON.parse(data); }
-    catch { return alert('Save file corrupted.'); }
-
-    const baseZ = ZanpakutoDB[raw.name] || null;
-    this.player = new Character({
-      name:      raw.name,
-      hp:        raw.maxHp,
-      reiatsu:   raw.maxRei,
-      atk:       raw.atk,
-      def:       raw.def,
-      spd:       raw.spd,
-      zanpakuto: baseZ,
-      faction:   raw.faction
-    });
-
-    this.player.xp              = raw.xp;
-    this.player.lv              = raw.lv;
-    this.player.statPts         = raw.statPts || 0;
-    this.player.hasShikai       = raw.hasShikai;
-    this.player.hasBankai       = raw.hasBankai;
-    this.player.maskOn          = raw.maskOn;
-    this.player.skills          = (raw.skills || []).map(s => new Skill(s));
-    this.player.hollowArtsChosen= raw.hollowArtsChosen || [];
-    this.updatePlayerPanel();
-    this.populateSkills();
+    if (!data) return alert('No save.');
+    const raw = JSON.parse(data);
+    this.player = Object.assign(new Character(raw), raw);
     alert('Game loaded.');
+    this.updatePlayerPanel();
   },
 
+  /**********  INIT  **********/
   init() {
-    // New Game
+    // bind buttons
     document.getElementById('btnNew').onclick = () => {
-      let fc = '';
-      while (!['soul reaper','hollow'].includes(fc)) {
-        const inF = prompt('Choose race: Soul Reaper / Hollow');
-        if (inF === null) return;
-        fc = inF.trim().toLowerCase();
-      }
-      const faction = fc === 'soul reaper' ? 'Soul Reaper' : 'Hollow';
-
-      let nm = '';
-      while (!nm) {
-        const inN = prompt('Enter your name (no HTML):');
-        if (inN === null) { nm = faction + 'Rookie'; break; }
-        nm = inN.trim().replace(/</g,'').replace(/>/g,'');
-      }
-
-      const base = faction === 'Soul Reaper'
-        ? { hp:160, reiatsu:90,  atk:20, def:10, spd:12, zanpakuto:ZanpakutoDB.Ichigo }
-        : { hp:180, reiatsu:80,  atk:22, def:10, spd:11, zanpakuto:null };
-      this.player = new Character({ name:nm, faction, ...base });
-
-      const statBtns = ['hp','atk','def','spd','rei'].map(stat => {
-        const b = document.createElement('button');
-        b.textContent = `+${stat.toUpperCase()}`;
-        b.onclick     = () => this.allocateStat(stat);
-        return b;
-      });
-      document.getElementById('stat-buttons').replaceChildren(...statBtns);
-
+      const fc = prompt('Race: Soul Reaper / Hollow').trim();
+      if (!Factions.includes(fc)) return alert('Invalid race.');
+      const nm = prompt('Name:').trim();
+      const base = fc==='Soul Reaper'
+        ? { hp:160,reiatsu:90,atk:20,def:10,spd:12,zanpakuto:ZanpakutoDB.Ichigo }
+        : { hp:180,reiatsu:80,atk:22,def:10,spd:11,zanpakuto:null };
+      this.player = new Character({ name:nm, faction:fc, ...base });
       document.getElementById('player-panel').classList.remove('hidden');
       this.updatePlayerPanel();
       this.startBattle();
     };
 
-    // Transforms
-    document.getElementById('btnShikai').onclick = () => {
-      this.player.learnShikai();
-      this.populateSkills();
-      this.log('Shikai released!');
-      this.updatePlayerPanel();
-    };
-    document.getElementById('btnBankai').onclick = () => {
-      this.player.learnBankai();
-      this.populateSkills();
-      this.log('Bankai unleashed!');
-      this.updatePlayerPanel();
-    };
-    this.btnMask.onclick = () => {
-      if (this.player.maskOn) this.player.removeMask();
-      else                     this.player.applyMask();
-      this.log(this.player.maskOn ? 'Mask on!' : 'Mask off.');
-      this.updatePlayerPanel();
-    };
-
-    // Stat allocation
-    this.allocateStat = stat => {
-      if (this.player.statPts <= 0) return;
-      this.player.statPts--;
-      switch(stat) {
-        case 'hp':  this.player.maxHp  += 10; this.player.hp = this.player.maxHp; break;
-        case 'atk': this.player.atk    += 2;                        break;
-        case 'def': this.player.def    += 2;                        break;
-        case 'spd': this.player.spd    += 1;                        break;
-        case 'rei': this.player.maxRei += 6; this.player.reiatsu = this.player.maxRei; break;
-      }
-      this.log(`+1 ${stat.toUpperCase()} invested.`);
-      this.updatePlayerPanel();
-    };
-
-    // Save/Load
-    document.getElementById('btnSave').onclick = () => this.save();
-    document.getElementById('btnLoad').onclick = () => this.load();
-
-    // Next enemy
-    document.getElementById('btnNext').onclick = () => this.startBattle();
+    // transforms & progression
+    document.addEventListener('keydown', e => {
+      if (e.key==='G' && this.player) this.player.pullChain();
+    });
+    document.getElementById('btnSave').onclick = ()=>this.save();
+    document.getElementById('btnLoad').onclick = ()=>this.load();
+    document.getElementById('btnNext').onclick = ()=>this.startBattle();
   }
 };
 
-window.onload = () => Game.init();
+window.onload = ()=>Game.init();
