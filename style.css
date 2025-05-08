@@ -1,55 +1,40 @@
 :root {
-  --bg:      #0b0e13;
-  --fg:      #e8e8e8;
-  --accent:  #ff5400;
-  --panel:   #1b1f26;
-  --btn-bg:  #262c35;
+  --bg: #0b0e13;
+  --fg: #e8e8e8;
+  --accent: #ff5400;
+  --panel: #1b1f26;
+  --btn-bg: #262c35;
   --btn-hover: #ff5400;
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   font-family: system-ui, sans-serif;
   color: var(--fg);
 }
 
 body {
   background: var(--bg);
-  display: flex;
-  justify-content: center;
+  display: flex; justify-content: center;
   padding: 1rem;
 }
 
-#game {
-  width: 800px;
-  max-width: 100%;
-}
+#game { width: 800px; max-width: 100%; }
 
 header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  display: flex; align-items: center; gap: 1rem;
 }
 
-header h1 {
-  flex: 1;
-  color: var(--accent);
-}
+header h1 { flex: 1; color: var(--accent); }
 
 button {
   background: var(--btn-bg);
-  border: none;
-  border-radius: 4px;
-  color: var(--fg);
-  padding: 0.5rem 1rem;
-  cursor: pointer;
+  border: none; border-radius: 4px;
+  padding: 0.5rem 1rem; cursor: pointer;
 }
 
-button:hover {
-  background: var(--btn-hover);
-}
+button:hover { background: var(--btn-hover); }
 
 .panel {
   background: var(--panel);
@@ -58,83 +43,35 @@ button:hover {
   padding: 1rem;
 }
 
-.hidden {
-  display: none !important;
+.hidden { display: none !important; }
+
+/* PLAYER PANEL */
+#chain-panel, #prog-panel { margin-top: 0.5rem; }
+#chainCount, #stageDisplay, #killPoints {
+  font-weight: bold; margin-left: 0.5rem;
 }
 
-/* Player Panel */
-#chain-panel,
-#prog-panel {
-  margin-top: 0.5rem;
-}
-
-#chainCount,
-#stageDisplay,
-#killPoints {
-  font-weight: bold;
-  margin-left: 0.5rem;
-}
-
-/* Battle Panel */
+/* BATTLE PANEL */
 #battle-canvas {
-  background: #111;
-  border: 1px solid #333;
-  width: 100%;
-  height: auto;
+  background: #111; border: 1px solid #333;
+  width: 100%; height: auto;
 }
-
 #battle-log {
   margin-top: 0.5rem;
-  height: 120px;
-  overflow-y: auto;
+  height: 120px; overflow-y: auto;
   font-size: 0.9rem;
 }
-
 #skill-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
   margin-top: 0.5rem;
 }
+#skill-grid button { flex: 1 0 48%; }
 
-#skill-grid button {
-  flex: 1 0 48%;
-}
-
-/* Arrancar Mini-Game */
+/* ARRANCAR MINI-GAME */
 #arrows {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
+  display: flex; justify-content: center; gap: 1rem;
   margin-bottom: 1rem;
 }
-
 #arrow-log {
-  height: 80px;
-  overflow-y: auto;
-  font-size: 0.9rem;
-}
-
-/* Prompt Panel */
-#prompt-panel {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-#prompt-text {
-  flex: 1;
-}
-
-#prompt-input {
-  flex: 2;
-  padding: 0.4rem;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #222;
-  color: var(--fg);
-}
-
-#prompt-submit {
-  flex: 0;
+  height: 80px; overflow-y: auto; font-size: 0.9rem;
 }
